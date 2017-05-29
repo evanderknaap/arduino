@@ -91,8 +91,7 @@ void processTick()
   if(beoBit!= BEO_STOP) return;
   else
   {  
-    Serial.println(index);
-    if(index == 16) command == getBeoCommandFromMessage(); //Start BIT + 16 BIT message
+    if(index == 16) command == getBeoCommandFromMessage(); // 1 dummy start bit after start bit, 16 message bits starting at 0
     else reset();
   }
  
@@ -111,13 +110,11 @@ void reset()
 
 int getBeoBitFromPulseAndStore(int pulse)
 { 
-  // return the BEO_command corresponding to the pulseLength
-  // If its a data bit for the message (1 or 0) , stor in messagp[]
+  // returns the BEO_command corresponding to the pulseLength
+  // if a BEO_command is recognized, the corresponding value is stored in the message body
   
   if (pulse >= (BEO_ZERO-TICK) && pulse <= (BEO_ZERO+TICK))
-  { 
-    if (message[index-1] == BEO_START) return BEO_ZERO; // do nothing if its the 4th start bit
-    
+  {     
     index++;
     message[index] = 0;
     return BEO_ZERO;
@@ -137,8 +134,6 @@ int getBeoBitFromPulseAndStore(int pulse)
   else if (pulse >= (BEO_START-TICK) && pulse <= (BEO_START+TICK))
   { 
     reset();
-    index++;
-    message[index] = BEO_START;
     return BEO_START;
   }
   else if (pulse >= (BEO_STOP-TICK) && pulse <= (BEO_STOP+TICK)) return BEO_STOP;
