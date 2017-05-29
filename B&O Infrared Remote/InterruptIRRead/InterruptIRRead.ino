@@ -18,6 +18,9 @@
 int lastPinState = 0;
 int index;
 int ticks  = 0;
+int message [18]; //holds the messagebody
+int command = 0;
+
 double freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
 
@@ -60,38 +63,87 @@ ISR(TIMER1_COMPA_vect)
   processTick();
 }
 
-void processTick()
+boolean didReceivePulse()
 {
-  ticks++;
+  Serial.println("pulse");
   
   // Check if we changed from HIGH to LOW
   int currentPinState = PINB;                     // Read the states of pin 8 - 13
   currentPinState = currentPinState & B00000100;  // Read out the state of PIN 10 only
-  int jump = currentPinState - lastPinState;
+  int change = currentPinState - lastPinState;
   lastPinState = currentPinState;
-  if(jump >= 0) return;                          
   
-  // get the pulseLength and check if we recognized a beoBit, return if failed (-1)
+  if (change < 0) return true;
+  else return false;
+}
+
+void processTick()
+{
+  ticks++;
+  
+  // Check if we recieved a pulse in this tick
+  if(!didReceivePulse()) return;                      
+  
+  // compute the pulseLength and check if we recognized a beoBit from the pulse, return if failed (-1)
   Serial.println(ticks*TICK);
-  int beoBit = getBeoBitFromPulse(ticks * TICK);
+  int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
   ticks = 0;
   if(beoBit == -1) return;
   
-  // If its the start bit reset
-  
-  // If is is the stop bit, check if succesfull, if not -1, return 
-  
-  // compute the command integer if succesfull  
-
+  // If we reached the end of the pulse, get the BEO Command if succesfull
+  if(beoBit == BEO_STOP)
+  {
+    if(index == 15) command = getBeoCommandFromMessage();
+    else reset();
+  }
+ 
 }
-int getBeoBitFromPulse(int pulse)
+
+int getBeoCommandFromMessage()
 {
-  int beobit = 0;
-  
-  return beobit;
+  return 0;
 }
 
+void reset() 
+{
+  memset(message, 0, sizeof(message));
+  index = 0;
+}
 
+int getBeoBitFromPulseAndStore(int pulse)
+{ 
+  
+  
+  // return the BEO_command corresponding to the pulseLength
+  // If its a data bit for the message (1 or 0) , stor in messagp[]
+  
+  if (pulse > (BEO_ZERO-TICK) && pulse < (BEO_ZERO+TICK))
+  { 
+    message[index] = 0;
+    index++;
+    return BEO_ZERO;
+  }
+  else if (pulse > (BEO_ONE-TICK) && pulse < (BEO_ONE+TICK)) 
+  {
+    message[index] = 1;
+    index++;
+    return BEO_ONE;  
+  }
+  else if (pulse > (BEO_SAME-TICK) && pulse < (BEO_SAME+TICK))
+  { 
+    message[index] = message[index-1];
+    index++;
+    return BEO_SAME;  
+  }
+  else if (pulse > (BEO_START-TICK) && pulse < (BEO_START+TICK))
+  { 
+    reset();
+    return BEO_START;
+  }
+  else if (pulse > (BEO_STOP-TICK) && pulse < (BEO_STOP+TICK)) return BEO_STOP;
+  else return -1; // failed to recognize
+ 
+}
 
 void loop(){
 
