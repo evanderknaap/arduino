@@ -15,9 +15,9 @@
 #define BEO_STOP    12500 
 #define BEO_START   15625
 
-int lastState = 0;
+int lastPinState = 0;
 int index;
-int ticker  = 0;
+int ticks  = 0;
 double freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
 
@@ -62,22 +62,28 @@ ISR(TIMER1_COMPA_vect)
 
 void processTick()
 {
-  ticker++;
+  ticks++;
   
-  int currentState = PINB; // Read the states of pin 8 - 13
-  currentState = currentState & B00000100; // Read out the state of PIN 10 only
-  if(currentState != lastState)
-  {
-    if(currentState - lastState < 0)
-    {
-      Serial.println(ticker * TICK);
-      ticker = 0; 
-    }
+  // Check if we changed from HIGH to LOW
+  int currentPinState = PINB;                     // Read the states of pin 8 - 13
+  currentPinState = currentPinState & B00000100;  // Read out the state of PIN 10 only
+  int jump = currentPinState - lastPinState;
+  lastPinState = currentPinState;
+  if(jump >= 0) return;                          
   
-    lastState =  currentState;
-  }
-}
+  // get the pulseLength and check if we recognized a beoBit, return if failed (-1)
+  Serial.println(ticks*TICK);
+  int beoBit = getBeoBitFromPulse(ticks * TICK);
+  ticks = 0;
+  if(beoBit == -1) return;
+  
+  // If its the start bit reset
+  
+  // If is is the stop bit, check if succesfull, if not -1, return 
+  
+  // compute the command integer if succesfull  
 
+}
 int getBeoBitFromPulse(int pulse)
 {
   int beobit = 0;
