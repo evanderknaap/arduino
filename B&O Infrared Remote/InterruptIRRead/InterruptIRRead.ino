@@ -64,9 +64,7 @@ ISR(TIMER1_COMPA_vect)
 }
 
 boolean didReceivePulse()
-{
-  Serial.println("pulse");
-  
+{  
   // Check if we changed from HIGH to LOW
   int currentPinState = PINB;                     // Read the states of pin 8 - 13
   currentPinState = currentPinState & B00000100;  // Read out the state of PIN 10 only
@@ -85,14 +83,14 @@ void processTick()
   if(!didReceivePulse()) return;                      
   
   // compute the pulseLength and check if we recognized a beoBit from the pulse, return if failed (-1)
-  Serial.println(ticks*TICK);
   int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
+  Serial.println(beoBit);
   ticks = 0;
-  if(beoBit == -1) return;
   
-  // If we reached the end of the pulse, get the BEO Command if succesfull
-  if(beoBit == BEO_STOP)
-  {
+  // If we reached the end of the BEO message, get the BEO integer command if succesfull (16 BIT)
+  if(beoBit != BEO_STOP) return;
+  else
+  {  
     if(index == 15) command = getBeoCommandFromMessage();
     else reset();
   }
@@ -112,35 +110,33 @@ void reset()
 
 int getBeoBitFromPulseAndStore(int pulse)
 { 
-  
-  
   // return the BEO_command corresponding to the pulseLength
   // If its a data bit for the message (1 or 0) , stor in messagp[]
   
-  if (pulse > (BEO_ZERO-TICK) && pulse < (BEO_ZERO+TICK))
+  if (pulse >= (BEO_ZERO-TICK) && pulse <= (BEO_ZERO+TICK))
   { 
     message[index] = 0;
     index++;
     return BEO_ZERO;
   }
-  else if (pulse > (BEO_ONE-TICK) && pulse < (BEO_ONE+TICK)) 
+  else if (pulse >= (BEO_ONE-TICK) && pulse <= (BEO_ONE+TICK)) 
   {
     message[index] = 1;
     index++;
     return BEO_ONE;  
   }
-  else if (pulse > (BEO_SAME-TICK) && pulse < (BEO_SAME+TICK))
+  else if (pulse >= (BEO_SAME-TICK) && pulse <= (BEO_SAME+TICK))
   { 
     message[index] = message[index-1];
     index++;
     return BEO_SAME;  
   }
-  else if (pulse > (BEO_START-TICK) && pulse < (BEO_START+TICK))
+  else if (pulse >= (BEO_START-TICK) && pulse <= (BEO_START+TICK))
   { 
     reset();
     return BEO_START;
   }
-  else if (pulse > (BEO_STOP-TICK) && pulse < (BEO_STOP+TICK)) return BEO_STOP;
+  else if (pulse >= (BEO_STOP-TICK) && pulse <= (BEO_STOP+TICK)) return BEO_STOP;
   else return -1; // failed to recognize
  
 }
