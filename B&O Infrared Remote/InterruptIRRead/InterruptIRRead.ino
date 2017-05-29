@@ -82,16 +82,17 @@ void processTick()
   // Check if we recieved a pulse in this tick
   if(!didReceivePulse()) return;                      
   
-  // compute the pulseLength and check if we recognized a beoBit from the pulse, return if failed (-1)
+  // compute the pulseLength and check if we recognized a beoBit from the pulse, returns -1 if failed
   int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
   Serial.println(beoBit);
   ticks = 0;
   
   // If we reached the end of the BEO message, get the BEO integer command if succesfull (16 BIT)
-  if(beoBit != BEO_STOP) return;
+  if(beoBit!= BEO_STOP) return;
   else
   {  
-    if(index == 15) command = getBeoCommandFromMessage();
+    Serial.println(index);
+    if(index == 16) command == getBeoCommandFromMessage(); //Start BIT + 16 BIT message
     else reset();
   }
  
@@ -105,7 +106,7 @@ int getBeoCommandFromMessage()
 void reset() 
 {
   memset(message, 0, sizeof(message));
-  index = 0;
+  index = -1;
 }
 
 int getBeoBitFromPulseAndStore(int pulse)
@@ -115,25 +116,29 @@ int getBeoBitFromPulseAndStore(int pulse)
   
   if (pulse >= (BEO_ZERO-TICK) && pulse <= (BEO_ZERO+TICK))
   { 
-    message[index] = 0;
+    if (message[index-1] == BEO_START) return BEO_ZERO; // do nothing if its the 4th start bit
+    
     index++;
+    message[index] = 0;
     return BEO_ZERO;
   }
   else if (pulse >= (BEO_ONE-TICK) && pulse <= (BEO_ONE+TICK)) 
   {
-    message[index] = 1;
     index++;
+    message[index] = 1;
     return BEO_ONE;  
   }
   else if (pulse >= (BEO_SAME-TICK) && pulse <= (BEO_SAME+TICK))
   { 
-    message[index] = message[index-1];
     index++;
+    message[index] = message[index-1];
     return BEO_SAME;  
   }
   else if (pulse >= (BEO_START-TICK) && pulse <= (BEO_START+TICK))
   { 
     reset();
+    index++;
+    message[index] = BEO_START;
     return BEO_START;
   }
   else if (pulse >= (BEO_STOP-TICK) && pulse <= (BEO_STOP+TICK)) return BEO_STOP;
