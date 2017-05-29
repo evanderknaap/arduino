@@ -7,7 +7,7 @@
 // Digital pin 13, is B5 register
 
 // Defining the Bang & Olufsen commands
-#define TICK 125 // 25 micro seconds 
+#define TICK 25 // 25 micro seconds 
 
 #define BEO_ZERO    (3125 / TICK)
 #define BEO_SAME    (6250 / TICK)
@@ -30,11 +30,10 @@ void setup(){
   }
   
   Serial.print("freq: ");
-  Serial.print(freq);
-  Serial.print("and prescale: ");
+  Serial.println(freq);
+  Serial.print("Prescale: ");
   Serial.println(prescale);
   
-  //pinMode(10,INPUT);
   DDRB = DDRB & B11111011;   // Set Pin 10 as input, leave the rest of the pins as - is
   PORTB = DDRB & B11111011; // Set Pin 10 to LOW, leave the rest of the registers untouched
   
@@ -70,7 +69,6 @@ void decode()
   int currentState = PINB; // Read the states of pin 8 - 13
   currentState = currentState & B00000100; // Read out the state of PIN 10 only
 
-  // If it was high and wet to low, or visa versa, check how many pulsed were in between those two events
   if (currentState != lastState)
   { 
     if(currentState - lastState < 0)
