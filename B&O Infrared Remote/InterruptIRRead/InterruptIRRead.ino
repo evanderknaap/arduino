@@ -20,6 +20,7 @@ int index;
 int ticks  = 0;
 int message [18]; //holds the messagebody
 int command = 0;
+int address = 0;
 
 double freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
@@ -31,7 +32,6 @@ void setup(){
    while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB
   }
-  
   
   DDRB = DDRB & B11111011;   // Set Pin 10 as input, leave the rest of the pins as - is
   PORTB = DDRB & B11111011; // Set Pin 10 to LOW, leave the rest of the registers untouched
@@ -50,7 +50,7 @@ void setup(){
     TCCR1B |= (1 << CS11);  
     // enable timer compare interrupt
     TIMSK1 |= (1 << OCIE1A);
-  
+   
   sei();//allow interrupts
   
   delay(5);
@@ -84,26 +84,40 @@ void processTick()
   
   // compute the pulseLength and check if we recognized a beoBit from the pulse, returns -1 if failed
   int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
-  Serial.println(beoBit);
+  //Serial.println(beoBit);
   ticks = 0;
   
   // If we reached the end of the BEO message, get the BEO integer command if succesfull (16 BIT)
   if(beoBit!= BEO_STOP) return;
   else
   {  
-    if(index == 16) command == getBeoCommandFromMessage(); // 1 dummy start bit after start bit, 16 message bits starting at 0
-    else reset();
+    Serial.println(index);
+    getBeoCommandFromMessage();
   }
- 
 }
 
-int getBeoCommandFromMessage()
+// set the address and command ints. First 8 bits are the address, other 8 the command
+void getBeoCommandFromMessage()
 {
-  return 0;
+  command = 0;
+  address = 0;
+  for (int i = 0; i < 8; i++)
+  {
+    command *= 2;
+    command += message[i+1] ; // First bit is the start bit
+    address *= 2;
+    address += message[i+9] ;
+  }
+  Serial.println(command);
+  Serial.println(address);
+  
+  return;
 }
 
 void reset() 
 {
+  command = 0;
+  address = 0;
   memset(message, 0, sizeof(message));
   index = -1;
 }
