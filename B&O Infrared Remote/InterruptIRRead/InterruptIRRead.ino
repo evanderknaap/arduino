@@ -18,12 +18,13 @@
 int lastPinState = 0;
 int index;
 int ticks  = 0;
-int message [18]; //holds the messagebody
-int command = 0;
-int address = 0;
+int message [20]; //holds the messagebody
+int dibs [20]; //holds the messagebody
+double command = 0;
+double address = 0;
 bool received = false;
 
-double freq =  1000000/TICK;
+long freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
 
 void setup(){
@@ -79,6 +80,9 @@ boolean didReceivePulse()
 void processTick()
 {
   ticks++;
+
+  // If we are processing a received message, return
+  if (received) return;
   
   // Check if we received a pulse in this tick
   if(!didReceivePulse()) return;                      
@@ -88,39 +92,23 @@ void processTick()
   index++;
   ticks = 0;
   message[index] = pulse;
+
+  if (index > 18) index = -1;
   
-  if ((pulse == BEO_STOP)) received = true;
-  else if (pulse == BEO_START) reset();
-  else ;
-  // compute the pulseLength and check if we recognized a beoBit from the pulse, returns -1 if failed
-  //int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
+  if ((pulse == BEO_STOP))
+  {
+    received = true;
+    return;
+  }
+
   
-  // If we reached the end of the BEO message, get the BEO integer command if succesfull (16 BIT)
-//  if(beoBit!= BEO_STOP) return;
-//  else
-//  {  
-//    Serial.println(index);
-//    //getBeoCommandFromMessage();
-//  }
+  if (pulse == BEO_START)
+  {
+    reset();
+    return;
+  }
 }
 
-// set the address and command ints. First 8 bits are the address, other 8 the command
-void getBeoCommandFromMessage()
-{
-  command = 0;
-  address = 0;
-  for (int i = 0; i < 8; i++)
-  {
-    command *= 2;
-    command += message[i+1] ; // First bit is the start bit
-    address *= 2;
-    address += message[i+9] ;
-  }
-  Serial.println(command);
-  Serial.println(address);
-  
-  return;
-}
 
 void reset() 
 {
@@ -130,47 +118,38 @@ void reset()
   received = false;
 }
 
-int getBeoBitFromPulseAndStore(int pulse)
+void readBits()
 { 
-  // returns the BEO_command corresponding to the pulseLength
-  // if a BEO_command is recognized, the corresponding value is stored in the message body
+  // Read the pulse, and save it into 1 - 0 values
   
-  if (pulse >= (BEO_ZERO-TICK) && pulse <= (BEO_ZERO+TICK))
-  {     
-    index++;
-    message[index] = 0;
-    return BEO_ZERO;
-  }
-  else if (pulse >= (BEO_ONE-TICK) && pulse <= (BEO_ONE+TICK)) 
+  for (int ind = 1; ind < 17; ind ++)
   {
-    index++;
-    message[index] = 1;
-    return BEO_ONE;  
+    int pulse = message[ind];
+    if (pulse >= (BEO_ZERO-TICK) && pulse <= (BEO_ZERO+TICK)) dibs[ind] = 0;
+    else if (pulse >= (BEO_ONE-TICK) && pulse <= (BEO_ONE+TICK)) dibs[ind] = 1;
+    else if (pulse >= (BEO_SAME-TICK) && pulse <= (BEO_SAME+TICK)) dibs[ind] = dibs[ind-1];
+    else if (pulse >= (BEO_START-TICK) && pulse <= (BEO_START+TICK));
+    else if (pulse >= (BEO_STOP-TICK) && pulse <= (BEO_STOP+TICK));
+    else; // failed to recognize
+  } 
+  
+  int base = 0;
+  int back_count = 16;
+  while (back_count > 8)
+  {
+    command += pow(2,base)*dibs[back_count];
+    address += pow(2,base)*dibs[back_count-8];
+    base++;
+    back_count--;
   }
-  else if (pulse >= (BEO_SAME-TICK) && pulse <= (BEO_SAME+TICK))
-  { 
-    index++;
-    message[index] = message[index-1];
-    return BEO_SAME;  
-  }
-  else if (pulse >= (BEO_START-TICK) && pulse <= (BEO_START+TICK))
-  { 
-    reset();
-    return BEO_START;
-  }
-  else if (pulse >= (BEO_STOP-TICK) && pulse <= (BEO_STOP+TICK)) return BEO_STOP;
-  else return -1; // failed to recognize
- 
+  Serial.println(command);
 }
 
 void loop(){
   if (received)
   {
-    for (int i = 0; i<18; i++)
-    {
-      Serial.println(message[i]);
-      reset();
-    }
+    readBits();
+    reset();
   }
 }
 
