@@ -43,6 +43,21 @@ public:
     const String tv_HDMI3 = "AAAAAgAAABoAAABcAw==";
     const String tv_HDMI4 = "AAAAAgAAABoAAABdAw==";
     
+    const String tv_NUM0 = "AAAAAQAAAAEAAAAJAw==";
+    const String tv_NUM1 = "AAAAAQAAAAEAAAAAAw==";
+    const String tv_NUM2 = "AAAAAQAAAAEAAAABAw==";
+    const String tv_NUM3 = "AAAAAQAAAAEAAAADAw==";
+    const String tv_NUM4 = "AAAAAQAAAAEAAAADAw==";
+    const String tv_NUM5 = "AAAAAQAAAAEAAAAEAw==";
+    const String tv_NUM6 = "AAAAAQAAAAEAAAAFAw==";
+    const String tv_NUM7 = "AAAAAQAAAAEAAAAGAw==";
+    const String tv_NUM8 = "AAAAAQAAAAEAAAAHAw==";
+    const String tv_NUM9 = "AAAAAQAAAAEAAAAIAw==";
+    
+    const String tv_HOME = "AAAAAQAAAAEAAABgAw==";
+    const String tv_CHUP = "AAAAAQAAAAEAAAAQAw==";
+    const String tv_CHDOWN = "AAAAAQAAAAEAAAARAw==";
+    
 private:
     String getCommandPackage(String command);
     String _password;
