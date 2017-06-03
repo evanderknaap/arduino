@@ -1,2 +1,0 @@
-SonyTvMote 	KEYWORD1
-sendPostRequest KEYWORD2
