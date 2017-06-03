@@ -3,8 +3,8 @@
 //#define TICK 625
 
 // This code creates a timer at 40kHz on pin 13. It checks if the PIN is high and low. 
-// On Pin 10 an IR receiver is attached, to listen to B&O commands using IR signals 
-// Digital pin 10, is B5 register
+// On Pin 9 an IR receiver is attached, to listen to B&O commands using IR signals 
+// Digital pin 9, is B5 register
 
 // Defining the Bang & Olufsen commands
 #define TICK 125 // 125 micro seconds 
@@ -33,8 +33,8 @@ void setup(){
     ; // wait for serial port to connect. Needed for native USB
   }
   
-  DDRB = DDRB & B11111011;   // Set Pin 10 as input, leave the rest of the pins as - is
-  PORTB = DDRB & B11111011; // Set Pin 10 to LOW, leave the rest of the registers untouched
+  DDRB = DDRB & B11111101;   // Set Pin 10 as input, leave the rest of the pins as - is
+  PORTB = DDRB & B11111101; // Set Pin 10 to LOW, leave the rest of the registers untouched
   
   cli();//stop interrupts
   
@@ -67,7 +67,7 @@ boolean didReceivePulse()
 {  
   // Check if we changed from HIGH to LOW
   int currentPinState = PINB;                     // Read the states of pin 8 - 13
-  currentPinState = currentPinState & B00000100;  // Read out the state of PIN 10 only
+  currentPinState = currentPinState & B00000010;  // Read out the state of PIN 10 only
   int change = currentPinState - lastPinState;
   lastPinState = currentPinState;
   
