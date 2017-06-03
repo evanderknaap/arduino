@@ -135,13 +135,15 @@ void readBits()
   
   int base = 0;
   int back_count = 16;
+  int res = 0;
   while (back_count > 8)
   {
-    command += pow(2,base)*dibs[back_count];
-    address += pow(2,base)*dibs[back_count-8];
+    command += (pow(2,base)*dibs[back_count]);
+    address += (pow(2,base)*dibs[back_count-8]);
     base++;
     back_count--;
   }
+
   Serial.println(command);
 }
 
