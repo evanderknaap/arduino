@@ -30,8 +30,13 @@
 #error Platform not defined
 #endif // end IDE
 
+#include <SPI.h>
+#include <Ethernet.h>
+
 #ifndef kloteXcode_RELEASE
 #define kloteXcode_RELEASE 100
+
+
 
 
 #endif // kloteXcode_RELEASE

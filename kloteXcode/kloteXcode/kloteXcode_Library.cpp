@@ -18,5 +18,7 @@
 
 
 #include "kloteXcode_Library.h"
+#include <SPI.h>
+#include <Ethernet.h>
 
 // Code

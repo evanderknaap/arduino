@@ -21,7 +21,7 @@
 # List application Arduino/chipKIT/Digispark/Energia/Maple/Microduino/Teensy/Wiring libraries here
 # default = 0 = none
 #
-APP_LIBS_LIST = 0
+APP_LIBS_LIST = SPI Ethernet
 
 # List user's libraries here 
 # default = 0 = none
