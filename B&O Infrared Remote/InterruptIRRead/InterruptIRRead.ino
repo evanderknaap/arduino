@@ -21,6 +21,7 @@ int ticks  = 0;
 int message [18]; //holds the messagebody
 int command = 0;
 int address = 0;
+bool received = false;
 
 double freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
@@ -79,21 +80,28 @@ void processTick()
 {
   ticks++;
   
-  // Check if we recieved a pulse in this tick
+  // Check if we received a pulse in this tick
   if(!didReceivePulse()) return;                      
-  
-  // compute the pulseLength and check if we recognized a beoBit from the pulse, returns -1 if failed
-  int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
-  //Serial.println(beoBit);
+
+  int pulse = ticks * TICK;
+ 
+  index++;
   ticks = 0;
+  message[index] = pulse;
+  
+  if ((pulse == BEO_STOP)) received = true;
+  else if (pulse == BEO_START) reset();
+  else ;
+  // compute the pulseLength and check if we recognized a beoBit from the pulse, returns -1 if failed
+  //int beoBit = getBeoBitFromPulseAndStore(ticks * TICK);
   
   // If we reached the end of the BEO message, get the BEO integer command if succesfull (16 BIT)
-  if(beoBit!= BEO_STOP) return;
-  else
-  {  
-    Serial.println(index);
-    getBeoCommandFromMessage();
-  }
+//  if(beoBit!= BEO_STOP) return;
+//  else
+//  {  
+//    Serial.println(index);
+//    //getBeoCommandFromMessage();
+//  }
 }
 
 // set the address and command ints. First 8 bits are the address, other 8 the command
@@ -118,8 +126,8 @@ void reset()
 {
   command = 0;
   address = 0;
-  memset(message, 0, sizeof(message));
   index = -1;
+  received = false;
 }
 
 int getBeoBitFromPulseAndStore(int pulse)
@@ -156,6 +164,13 @@ int getBeoBitFromPulseAndStore(int pulse)
 }
 
 void loop(){
-
+  if (received)
+  {
+    for (int i = 0; i<18; i++)
+    {
+      Serial.println(message[i]);
+      reset();
+    }
+  }
 }
 
