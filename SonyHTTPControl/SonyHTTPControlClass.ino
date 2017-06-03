@@ -44,7 +44,7 @@ void setup() {
 
   Serial.println("setup complete");  
   
-  sendTvCommand(client, tv_cmd_off);
+  sendTvCommand(tv_cmd_off);
 }
 
 
@@ -75,19 +75,11 @@ void sendTvCommand(EthernetClient client, String cmd)
   // Create a message body 
   String package = getCommandPackage(cmd);
   
-   Serial.println("connecting...");
-  if(client.connected())
-  { 
-   Serial.println("connected");
-   sendPostRequest(client, package);
-  }
+  // Serial.println("connecting...");
+  if(client.connected()) sendPostRequest(package);
   else{ 
       client.stop(); // close the connection, in order to make a new one
-      if(client.connect(tvIP, DEFAULT_PORT))
-     { 
-       Serial.println("connected");  
-       sendPostRequest(client, package);
-     }
+      if(client.connect(tvIP, DEFAULT_PORT)) sendPostRequest(client, package);
       else Serial.println("connection failed");
   }
 }
