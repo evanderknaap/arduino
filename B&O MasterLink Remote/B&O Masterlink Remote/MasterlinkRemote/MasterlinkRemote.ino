@@ -19,7 +19,7 @@ The tv_cmd_off is then send to a method that creates a HTTP body of the command.
 #define tv_cmd_HDMI2 "AAAAAgAAABoAAABbAw=="
 #define tv_cmd_HDMI3 "AAAAAgAAABoAAABcAw=="
 
-SoftwareSerial mySerial(9, 8, true); // Software serial to receive masterlink commands
+SoftwareSerial mySerial(9, 8); // Software serial to receive masterlink commands
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // Assign Mac address to the Etherner Shield
 IPAddress board(192,168,178,10);   // Assign static IP to the ethernet shield
 IPAddress server(192,168,178,31);  // IP of the TV
@@ -30,7 +30,7 @@ int counter = 0;
 
 void setup() {
   // Open serial communications and wait for port to open
-  //Serial.begin(9600);
+  Serial.begin(9600);
   
   // Initialize the network settings 
   Ethernet.begin(mac, board); // Settings of the board
@@ -41,7 +41,7 @@ void setup() {
   // Start the softwareSerial
   mySerial.begin(19200);
   
-  //Serial.println("setup complete");  
+  Serial.println("setup complete");  
 }
 
 void loop()
@@ -51,7 +51,7 @@ void loop()
     delay(10); 
     byte c =  mySerial.read();
     command[counter] = c;
-   // Serial.print(c,HEX); // For debugging
+    Serial.print(c,HEX); // For debugging
     counter++;
   }
   
