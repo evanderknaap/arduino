@@ -8,6 +8,7 @@
 #define TV_OFFLINE 2
 #define TV_TCP_PORT 20060
 #define LAST_BYTE 23
+#define MAX_MSG_LENGTH 40
 #define TIMEOUT_TIME 4000 // If we did not receive a reponse after 3[sec] from the tv, we concluded it failed & we close the connection
 #define RX_PORT 9
 #define TX_PORT 10
@@ -29,9 +30,6 @@ EthernetClient client;
 EthernetUDP Udp;
 SoftwareSerial mySerial(RX_PORT, TX_PORT); 
 
-//byte snd_read[24] = {42,83,69,80,79,87,82,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,10};                     // read tv power state command
-//byte snd_on[24] = {42,83,67,80,79,87,82,'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','1',10};       // switch power off command
-//byte snd_off[24] = {42,83,67,80,79,87,82,'0','0','0','0','0','0','0','0','0','0','0','0','0','0','0','0',10};      // switch power off command
 const unsigned char snd_off[25] = "*SCPOWR0000000000000000\n";
 const unsigned char snd_on[25] = "*SCPOWR0000000000000001\n";
 const unsigned char snd_read[25] = "*SEPOWR################\n";
@@ -40,14 +38,14 @@ const unsigned char snd_HDMI2[25] = "*SCINPT0000000100000002\n";
 const unsigned char snd_HDMI3[25] = "*SCINPT0000000100000003\n";
 const unsigned char snd_error[3] = "-1";
 
-byte response[24];
-byte beo_command[100];
+byte response[45];
+byte beo_command[45];
 int counter = 0;
 
 void setup() {
   
   Ethernet.begin(arduino_mac, arduino_ip);  // Initalize the Ethernet board 
- // Serial.begin(9600);       // Uncomment for debugging
+  //Serial.begin(9600);       // Uncomment for debugging
   mySerial.begin(19200);
   delay(1000);
   Serial.println("setup complete");  
@@ -61,92 +59,42 @@ void loop() {
     int c =  mySerial.read();
     beo_command[counter] = c;
     Serial.println(c,HEX); // For debugging
-    counter++;
-    if(mySerial.overflow()) Serial.println("overflow");
+    counter++; 
+    
+    if (counter > MAX_MSG_LENGTH) 
+    {
+      Serial.println("full bruh");
+      counter = 0;
+    }
+
+    if(mySerial.overflow())
+    {
+      Serial.println("Overflow");
+      mySerial.flush();
+    }
+    
   }
+
 
   // New command received
   if(counter > 0)
-  {
-    Serial.println();
-    counter = 0;
+  {    
+   counter = 0;
+   
+   const unsigned char * cmd = getSonyTVCommandFromBeoBytes(beo_command);
+   //Serial.print("size off ");
+   //Serial.println(sizeof(cmd));
+   //Serial.println(cmd[0]);
+   if(cmd[0] == '-') return; // do nothing if we didn't receive a valid command (which returns '-1')
 
-   const unsigned char * cmd = didReceiveStandbyCommand(beo_command);
-   Serial.print("size off ");
-   Serial.println(sizeof(cmd));
-   Serial.println(cmd[0]);
-   if(cmd[0] == '-') return; // do nothing if we didn't receive a standby command
-
-    Serial.println("Check connection"); 
-    if(client.connect(tv_ip,TV_TCP_PORT)) // Does not matter the key, if the tv is offline - WakeOnLan 
-    {
-      Serial.println("Connected");
-      int state = getTVPowerState();
-      if(client.connect(tv_ip, TV_TCP_PORT) && state == TV_ON) sendMessage(cmd);
-      else Serial.println("connection failed");
-    }
-    else
-    {
-      Serial.println("TV not online, do nothing");
-    }
+   // Serial.println("Check connection"); 
+    if(client.connect(tv_ip,TV_TCP_PORT)) sendMessage(cmd);
+    else;
+   
   }
-  
 }
 
-void sendMessage( const unsigned char message [])
-{
-  if (!client.connected()) return;
-
-  float starttime = millis();
-  float timepassed = 0;
-  
-  Serial.println("Sending message");
-  
-  for(int i=0; i <= LAST_BYTE ;i++)
-  {
-    Serial.print((char)message[i]);
-    client.write(message[i]);
-  }
-
-   // Stay in this loop untill we received a respone
-   while (client.connected()){
-      while (client.available() > 0)
-      {
-        response[counter] = client.read();
-        Serial.print((char)response[counter]);
-        counter++;
-        
-        if(client.available() == 0) 
-        {
-          counter = 0;
-          Serial.println("Message received, Disconnecting");
-          client.stop();
-        }
-      }
-
-      timepassed = millis() - starttime;
-      if(timepassed > TIMEOUT_TIME && client.available() == 0)
-      {
-        Serial.println("Timed out");
-        client.stop();
-      }
-   }
-
-   if(!client.connected()) Serial.println("Disconnected");
-}
-
-int getTVPowerState()
-{
-    if(!client.connected()) return TV_OFFLINE;
-    sendMessage(snd_read); // get the power state of the tv 
-      
-    // check the response, 1 is on, 2 is off F is error 
-    if (response[22] == '1') return TV_ON;
-    else if (response[22] == '0') return TV_OFF;
-    else return TV_OFFLINE;
-}
-
-const unsigned char * didReceiveStandbyCommand(byte cmd [])
+const unsigned char * getSonyTVCommandFromBeoBytes(byte cmd [])
 {
   if(cmd[7] == beo_cmd_standby && cmd[1] == beo_master_audio)
   {
@@ -175,22 +123,78 @@ const unsigned char * didReceiveStandbyCommand(byte cmd [])
 }
 
 
-void sendBeoCommandFromBytesAndTvState(const unsigned char * cmd, int state)
-{  
-  Serial.print(" The 8th bit: ");
-  Serial.println(cmd[7]);
+void sendMessage( const unsigned char message [])
+{
+  if (!client.connected()) return;
+
+  float starttime = millis();
+  float timepassed = 0;
   
-  if(state == TV_ON) 
+ // Serial.println("Sending message");
+  
+  for(int i=0; i <= LAST_BYTE ;i++)
   {
-    Serial.println("Switch tv off");
-    sendMessage(snd_off);
+    //Serial.print((char)message[i]);
+    client.write(message[i]);
   }
-  else if(state == TV_OFF)
-  {
-    Serial.println("Switch tv on");
-    sendMessage(snd_on);
-  }
+
+   // Stay in this loop untill we received a respone
+   while (client.connected()){
+      while (client.available() > 0)
+      {
+        response[counter] = client.read();
+        Serial.print((char)response[counter]);
+        counter++;
+        
+        if(client.available() <= 0) 
+        {
+          counter = 0;
+          //Serial.println("Message received, Disconnecting");
+          client.stop();
+        }
+      }
+//
+//      timepassed = millis() - starttime;
+//      if(timepassed > TIMEOUT_TIME && client.available() == 0)
+//      {
+//        Serial.println("Timed out");
+//        client.stop();
+//      }
+   }
+
+   if(!client.connected()); //Serial.println("Disconnected");
+   
 }
+//
+//int getTVPowerState()
+//{
+//    if(!client.connected()) return TV_OFFLINE;
+//    sendMessage(snd_read); // get the power state of the tv 
+//      
+//    // check the response, 1 is on, 2 is off F is error 
+//    if (response[22] == '1') return TV_ON;
+//    else if (response[22] == '0') return TV_OFF;
+//    else return TV_OFFLINE;
+//}
+
+
+
+//void sendBeoCommandFromBytesAndTvState(const unsigned char * cmd, int state)
+//{  
+//  Serial.print(" The 8th bit: ");
+//  Serial.println(cmd[7]);
+//  
+//  if(state == TV_ON) 
+//  {
+//    Serial.println("Switch tv off");
+//    sendMessage(snd_off);
+//  }
+//  else if(state == TV_OFF)
+//  {
+//    Serial.println("Switch tv on");
+//    sendMessage(snd_on);
+//  }
+//}
 
 
 
