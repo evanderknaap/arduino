@@ -1,17 +1,13 @@
 
-#include "TimerOne.h"
-#include "SPI.h"
-#include "Ethernet.h"
-#include "SonyTVMote.h"
-
 // Common divisors for 3125 = 1, 5, 25, 125, 625, 3125
+//#define TICK 625
 
 // This code creates a timer at 40kHz on pin 13. It checks if the PIN is high and low. 
 // On Pin 9 an IR receiver is attached, to listen to B&O commands using IR signals 
 // Digital pin 9, is B5 register
 
 // Defining the Bang & Olufsen commands
-#define TICK 125 // 125 micro seconds  
+#define TICK 625 // 125 micro seconds 
 
 #define BEO_ZERO    3125
 #define BEO_SAME    6250
@@ -27,21 +23,14 @@ int dibs [20]; //holds the messagebody
 int command = 0;
 int address = 0;
 bool received = false;
+bool received_pulse =  false;
 
 long freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
 
-byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // Assign Mac address to the Ethernet Shield
-IPAddress board(192,168,178,10);                     // Assign static IP to the ethernet shield
-IPAddress tvIP(192,168,178,31);                      // Assign the IP of the TV. To make 
-EthernetClient client;                               // Initialize the Ethernet client library with the IP address and port of the server
-SonyTvMote mote;
-
 void setup(){
  
   Serial.begin(9600);
-  Ethernet.begin(mac, board);
-  mote.begin("0000");
   
    while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB
@@ -49,38 +38,32 @@ void setup(){
   
   DDRB = DDRB & B11111101;   // Set Pin 10 as input, leave the rest of the pins as - is
   PORTB = DDRB & B11111101; // Set Pin 10 to LOW, leave the rest of the registers untouched
-
-  Timer1.initialize(TICK); // set a timer to count pulses
-  Timer1.attachInterrupt(processTick); // attach the service routine here
- 
+  
   cli();//stop interrupts
   
     //set timer1 interrupt at 1Hz
-    TCCR0A = 0;// set entire TCCR1A register to 0
-    TCCR0B = 0;// same for TCCR1B
-    TCNT0  = 0;//initialize counter value to 0
+    TCCR1A = 0;// set entire TCCR1A register to 0
+    TCCR1B = 0;// same for TCCR1B
+    TCNT1  = 0;//initialize counter value to 0
     // set compare match register for 40Khz increments
-    OCR0A = prescale ;// = (16*10^6) / (8*40000) - 1 (must be <65536)
+    OCR1A = prescale ;// = (16*10^6) / (8*40000) - 1 (must be <65536)
     // turn on CTC mode
-    TCCR0A |= (1 << WGM01);
+    TCCR1B |= (1 << WGM12);
     // Set 8 bit prescaler
-    TCCR0B |= (1 << CS01);  
+    TCCR1B |= (1 << CS11);  
     // enable timer compare interrupt
-    TIMSK0 |= (1 << OCIE0A);
+    TIMSK1 |= (1 << OCIE1A);
    
   sei();//allow interrupts
   
-  delay(1000);
+  delay(5);
   Serial.println("setup done");
-
-  if (client.connect(tvIP,80)) Serial.println("connected");
-  else Serial.println("connection failed");
 
 }
 
-ISR(TIMER0_COMPA_vect)
+ISR(TIMER1_COMPA_vect)
 {
-  
+  processTick();
 }
 
 boolean didReceivePulse()
@@ -91,7 +74,10 @@ boolean didReceivePulse()
   int change = currentPinState - lastPinState;
   lastPinState = currentPinState;
   
-  if (change < 0) return true;
+  if (change < 0) {
+    received_pulse = true;
+    return true;
+  }
   else return false;
 }
 
@@ -104,24 +90,6 @@ void processTick()
   // Check if we received a pulse in this tick
   if(!didReceivePulse()) return;                      
 
-  int pulse = ticks * TICK;
-  index++;
-  ticks = 0;
-  message[index] = pulse;
-
-  if (index > 19) index =  -1;
-  if ((pulse == BEO_STOP))
-  {
-    //Timer1.detachInterrupt();
-    received = true;
-    return;
-  }
-  
-  if (pulse == BEO_START)
-  {
-    reset();
-    return;
-  }
 }
 
 
@@ -134,7 +102,6 @@ void reset()
 void readBits()
 { 
   // Read the pulse, and save it into 1 - 0 values
-  if (!received) return;
   
   for (int ind = 1; ind < 17; ind ++)
   {
@@ -160,25 +127,43 @@ void readBits()
     address += base*dibs[back_count-8];
   }
 
-  Serial.println(command);
-    
   reset();
-  //Timer1.attachInterrupt(processTick);
+}
+
+boolean available()
+{
+  return received;
 }
 
 void loop(){
-
-  if(received)
+  if (received_pulse)
   {
-    readBits();  
-    if(command == 12)
+    int pulse = ticks * TICK;
+    index++;
+    ticks = 0;
+    message[index] = pulse;
+  
+    if (index > 19) index =  -1;
+    if ((pulse == BEO_STOP))
     {
-      if(!client.connected()) client.connect(tvIP,80);
-      mote.sendPostRequest(client,tv_off);
+      received = true;
     }
+    
+    if (pulse == BEO_START)
+    {
+      reset();
+    }
+
+    received_pulse = false;
+  }
+  
+  if (received)
+  {
+    readBits();
+    Serial.println(command);
+    Serial.println(address);
   }
 
-  while (client.available())
-      client.read();
+  
 }
 

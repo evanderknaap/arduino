@@ -75,7 +75,6 @@ void loop() {
     
   }
 
-
   // New command received
   if(counter > 0)
   {    
@@ -87,9 +86,19 @@ void loop() {
    //Serial.println(cmd[0]);
    if(cmd[0] == '-') return; // do nothing if we didn't receive a valid command (which returns '-1')
 
-   // Serial.println("Check connection"); 
-    if(client.connect(tv_ip,TV_TCP_PORT)) sendMessage(cmd);
-    else;
+    Serial.println("Check connection"); 
+    if(client.connect(tv_ip,TV_TCP_PORT))
+    {
+      int state = getTVPowerState();
+      client.connect(tv_ip,TV_TCP_PORT); // Reconnect to the tv
+      if(state == TV_OFF) sendMessage(snd_on);
+      else sendMessage(cmd);
+    }
+    else
+    {
+      Serial.println("seriously off");
+      wakeTVOnLan();
+    }
    
   }
 }
@@ -126,15 +135,10 @@ const unsigned char * getSonyTVCommandFromBeoBytes(byte cmd [])
 void sendMessage( const unsigned char message [])
 {
   if (!client.connected()) return;
-
-  float starttime = millis();
-  float timepassed = 0;
-  
- // Serial.println("Sending message");
   
   for(int i=0; i <= LAST_BYTE ;i++)
   {
-    //Serial.print((char)message[i]);
+    Serial.print((char)message[i]);
     client.write(message[i]);
   }
 
@@ -153,48 +157,46 @@ void sendMessage( const unsigned char message [])
           client.stop();
         }
       }
-//
-//      timepassed = millis() - starttime;
-//      if(timepassed > TIMEOUT_TIME && client.available() == 0)
-//      {
-//        Serial.println("Timed out");
-//        client.stop();
-//      }
    }
 
-   if(!client.connected()); //Serial.println("Disconnected");
+   if(!client.connected()); Serial.println("Disconnected");
    
 }
 //
-//int getTVPowerState()
-//{
-//    if(!client.connected()) return TV_OFFLINE;
-//    sendMessage(snd_read); // get the power state of the tv 
-//      
-//    // check the response, 1 is on, 2 is off F is error 
-//    if (response[22] == '1') return TV_ON;
-//    else if (response[22] == '0') return TV_OFF;
-//    else return TV_OFFLINE;
-//}
+int getTVPowerState()
+{
+    if(!client.connected()) return TV_OFFLINE;
+    sendMessage(snd_read); // get the power state of the tv 
+    Serial.print("State: ");
+    Serial.println(response[22]);
+     
+    // check the response, 1 is on, 2 is off F is error 
+    if (response[22] == '1') return TV_ON;
+    else if (response[22] == '0') return TV_OFF;
+    else return TV_OFFLINE;
+}
 
 
+void wakeTVOnLan()
+{
+  Serial.println("waking on lan");
+  const int nMagicPacketLength = 102;
+  byte abyMagicPacket[nMagicPacketLength] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+    
+  // Compose magic packet to wake remote machine. 
+  for (int ix = 6; ix < 102; ix++) {
+    abyMagicPacket[ix] = tvMAC[ix % 6];
+  }
+  
+  Udp.begin(7);
+  if (Udp.beginPacket(abyTargetIPAddress, 7)) {
+    Serial.println("sending package");
+    Udp.write(abyMagicPacket, nMagicPacketLength);
+    Udp.endPacket();
+  }
 
-//void sendBeoCommandFromBytesAndTvState(const unsigned char * cmd, int state)
-//{  
-//  Serial.print(" The 8th bit: ");
-//  Serial.println(cmd[7]);
-//  
-//  if(state == TV_ON) 
-//  {
-//    Serial.println("Switch tv off");
-//    sendMessage(snd_off);
-//  }
-//  else if(state == TV_OFF)
-//  {
-//    Serial.println("Switch tv on");
-//    sendMessage(snd_on);
-//  }
-//}
+  Udp.stop();
+}
 
 
 

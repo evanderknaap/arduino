@@ -7,7 +7,7 @@
 // Digital pin 9, is B5 register
 
 // Defining the Bang & Olufsen commands
-#define TICK 125 // 125 micro seconds 
+#define TICK 625 // 125 micro seconds 
 
 #define BEO_ZERO    3125
 #define BEO_SAME    6250
@@ -23,6 +23,7 @@ int dibs [20]; //holds the messagebody
 int command = 0;
 int address = 0;
 bool received = false;
+bool received_pulse =  false;
 
 long freq =  1000000/TICK;
 int prescale = 16000000/(8*freq)-1;
@@ -73,7 +74,10 @@ boolean didReceivePulse()
   int change = currentPinState - lastPinState;
   lastPinState = currentPinState;
   
-  if (change < 0) return true;
+  if (change < 0) {
+    received_pulse = true;
+    return true;
+  }
   else return false;
 }
 
@@ -86,23 +90,6 @@ void processTick()
   // Check if we received a pulse in this tick
   if(!didReceivePulse()) return;                      
 
-  int pulse = ticks * TICK;
-  index++;
-  ticks = 0;
-  message[index] = pulse;
-
-  if (index > 19) index =  -1;
-  if ((pulse == BEO_STOP))
-  {
-    received = true;
-    return;
-  }
-  
-  if (pulse == BEO_START)
-  {
-    reset();
-    return;
-  }
 }
 
 
@@ -149,11 +136,34 @@ boolean available()
 }
 
 void loop(){
+  if (received_pulse)
+  {
+    int pulse = ticks * TICK;
+    index++;
+    ticks = 0;
+    message[index] = pulse;
+  
+    if (index > 19) index =  -1;
+    if ((pulse == BEO_STOP))
+    {
+      received = true;
+    }
+    
+    if (pulse == BEO_START)
+    {
+      reset();
+    }
+
+    received_pulse = false;
+  }
+  
   if (received)
   {
     readBits();
     Serial.println(command);
     Serial.println(address);
   }
+
+  
 }
 
